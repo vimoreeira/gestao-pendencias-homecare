@@ -98,9 +98,17 @@
             <div class="header-nav"><button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button><h2>Nova Tarefa</h2></div>
             <form id="taskForm">
                 <div class="form-group"><label>Paciente</label><input type="text" id="paciente" placeholder="NOME DO PACIENTE" required></div>
-                <div class="form-group"><label>Data</label><input type="date" id="data" required></div>
+                
+                <div class="form-group"><label id="labelDataPrincipal">Data</label><input type="date" id="data" required></div>
+                
+                <div class="form-group" id="grupoDataEntrega" style="display: none;">
+                    <label>Data da Entrega</label>
+                    <input type="date" id="dataEntrega">
+                </div>
+
                 <div class="form-group"><label>Material</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL" required></div>
                 <div class="form-group"><label>Qtd.</label><input type="text" id="quantidade" required></div>
+                
                 <div class="form-group"><label>Tipo</label>
                     <select id="tarefa" required>
                         <option value="Comprar">Comprar</option>
@@ -109,6 +117,7 @@
                         <option value="Comprar/Entregar">Comprar/Entregar</option>
                     </select>
                 </div>
+                
                 <div class="form-group"><label>Periodicidade</label>
                     <select id="periodicidade">
                         <option value="unica">Única</option>
@@ -149,7 +158,6 @@
                         <label><input type="checkbox" value="Comprar" onchange="filtrarTarefas()"> Comprar</label>
                         <label><input type="checkbox" value="Entregar" onchange="filtrarTarefas()"> Entregar</label>
                         <label><input type="checkbox" value="Comunicar" onchange="filtrarTarefas()"> Comunicar</label>
-                        <label><input type="checkbox" value="Comprar/Entregar" onchange="filtrarTarefas()"> Comprar/Entregar</label>
                     </div>
                 </div>
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
@@ -206,38 +214,21 @@
                 const tr = document.createElement('tr');
                 if (t.status === 'concluida') tr.style.opacity = '0.5';
                 
-                let tipoOriginal = t.tipo || 'Comunicar';
-                if (tipoOriginal === 'Comprar e Enviar' || tipoOriginal === 'Comprar / Enviar' || tipoOriginal === 'Comprar/Enviar') {
-                    tipoOriginal = 'Comprar/Entregar';
+                // Mantemos o fallback para não sumir com tarefas antigas já salvas no banco
+                let tipoDisplay = t.tipo || 'Comunicar';
+                if (tipoDisplay === 'Comprar e Enviar' || tipoDisplay === 'Comprar / Enviar' || tipoDisplay === 'Comprar/Enviar') {
+                    tipoDisplay = 'Comprar/Entregar';
                 }
 
-                let tipoDisplay = tipoOriginal;
                 let tipoClasse = 'comunicar';
+                if (tipoDisplay === 'Comprar') tipoClasse = 'comprar';
+                else if (tipoDisplay === 'Entregar') tipoClasse = 'entregar';
+                else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
+                else if (tipoDisplay === 'Comprar/Entregar') tipoClasse = 'comprarentregar';
                 
-                // Lógica onde o Comprar/Entregar muda a própria roupa (fantasia)
-                if (tipoOriginal === 'Comprar/Entregar') {
-                    if (t.estagio_atual === 'Aguardando Entrega') {
-                        tipoDisplay = 'Entregar'; // Segundo estágio
-                        tipoClasse = 'entregar';
-                    } else {
-                        tipoDisplay = 'Comprar'; // Primeiro estágio
-                        tipoClasse = 'comprar';
-                    }
-                } else {
-                    if (tipoDisplay === 'Comprar') tipoClasse = 'comprar';
-                    else if (tipoDisplay === 'Entregar') tipoClasse = 'entregar';
-                    else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
-                }
-
                 let botoesAcao = '';
                 if (t.status === 'pendente') {
-                    // Se for do tipo duplo e estiver no primeiro estágio, o botão "Concluído" apenas avança
-                    if (tipoOriginal === 'Comprar/Entregar' && t.estagio_atual !== 'Aguardando Entrega') {
-                        botoesAcao = `<button class="btn-concluir" onclick="avancarEstagio(${t.id})">Concluído</button>`;
-                    } else {
-                        // Se já estiver no segundo estágio, ou for uma tarefa normal, conclui de vez
-                        botoesAcao = `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>`;
-                    }
+                    botoesAcao = `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>`;
                 } else {
                     botoesAcao = '✓';
                 }
@@ -280,20 +271,11 @@
             await carregarTarefas();
         }
 
-        // Função para o primeiro clique de quem é Comprar/Entregar
-        async function avancarEstagio(id) {
-            document.getElementById('loading').style.display = 'flex';
-            await supabaseApp.from('tarefas').update({ estagio_atual: 'Aguardando Entrega' }).eq('id', id);
-            await carregarTarefas();
-        }
-
-        // Função para fechar qualquer tarefa de vez (incluindo o segundo estágio)
         async function concluirTarefa(id) {
             const t = tarefas.find(x => x.id === id);
             document.getElementById('loading').style.display = 'flex';
             if (t.periodicidade !== 'unica') await gerarProxima(t);
-            // Salva como finalizado e concluído
-            await supabaseApp.from('tarefas').update({ status: 'concluida', estagio_atual: 'Finalizado', data_conclusao: new Date().toISOString() }).eq('id', id);
+            await supabaseApp.from('tarefas').update({ status: 'concluida', data_conclusao: new Date().toISOString() }).eq('id', id);
             await carregarTarefas();
         }
 
@@ -305,29 +287,60 @@
             if (t.tipo.includes('Comprar')) data.setDate(data.getDate() - 1);
             while (data.getDay() === 0 || data.getDay() === 6) data.setDate(data.getDate() - 1);
             
-            // Ao duplicar para o próximo ciclo, ela volta para "Aguardando Compra"
-            const nova = {...t, id: Date.now(), data: data.toISOString().split('T')[0], status: 'pendente', data_conclusao: null, estagio_atual: 'Aguardando Compra'};
+            const nova = {...t, id: Date.now(), data: data.toISOString().split('T')[0], status: 'pendente', data_conclusao: null};
             await supabaseApp.from('tarefas').insert([nova]);
         }
+
+        // --- LÓGICA DO NOVO CAMPO DE DATA ---
+        document.getElementById('tarefa').addEventListener('change', function() {
+            const grupoEntrega = document.getElementById('grupoDataEntrega');
+            const dataEntregaInput = document.getElementById('dataEntrega');
+            const labelDataPrincipal = document.getElementById('labelDataPrincipal');
+            
+            if (this.value === 'Comprar/Entregar') {
+                grupoEntrega.style.display = 'flex';
+                dataEntregaInput.required = true;
+                labelDataPrincipal.innerText = 'Data da Compra';
+            } else {
+                grupoEntrega.style.display = 'none';
+                dataEntregaInput.required = false;
+                dataEntregaInput.value = '';
+                labelDataPrincipal.innerText = 'Data';
+            }
+        });
 
         document.getElementById('taskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             document.getElementById('loading').style.display = 'flex';
             
-            const nova = {
-                id: Date.now(), 
-                paciente: document.getElementById('paciente').value.toUpperCase(),
-                data: document.getElementById('data').value, 
-                material: document.getElementById('material').value.toUpperCase(),
-                quantidade: document.getElementById('quantidade').value, 
-                tipo: document.getElementById('tarefa').value,
-                periodicidade: document.getElementById('periodicidade').value, 
-                status: 'pendente',
-                estagio_atual: 'Aguardando Compra' // Inicia no estágio zero
-            };
+            const paciente = document.getElementById('paciente').value.toUpperCase();
+            const material = document.getElementById('material').value.toUpperCase();
+            const quantidade = document.getElementById('quantidade').value; 
+            const periodicidade = document.getElementById('periodicidade').value; 
+            const tipo = document.getElementById('tarefa').value;
+            const dataPrincipal = document.getElementById('data').value;
             
-            await supabaseApp.from('tarefas').insert([nova]);
+            const baseNova = { paciente, material, quantidade, periodicidade, status: 'pendente' };
+
+            // Se for do tipo duplo, criamos um array com as duas tarefas
+            if (tipo === 'Comprar/Entregar') {
+                const dataEntrega = document.getElementById('dataEntrega').value;
+                await supabaseApp.from('tarefas').insert([
+                    { ...baseNova, id: Date.now(), data: dataPrincipal, tipo: 'Comprar' },
+                    { ...baseNova, id: Date.now() + 1, data: dataEntrega, tipo: 'Entregar' }
+                ]);
+            } else {
+                // Tarefa normal (única)
+                await supabaseApp.from('tarefas').insert([
+                    { ...baseNova, id: Date.now(), data: dataPrincipal, tipo: tipo }
+                ]);
+            }
+            
+            // Reseta o formulário e a visualização
             document.getElementById('taskForm').reset();
+            document.getElementById('grupoDataEntrega').style.display = 'none';
+            document.getElementById('labelDataPrincipal').innerText = 'Data';
+            
             await carregarTarefas();
             mudarTela('listView');
         });
@@ -357,16 +370,8 @@
 
                 const matchBusca = t.paciente.toLowerCase().includes(busca) || t.material.toLowerCase().includes(busca);
                 
-                let tipoOriginal = t.tipo;
-                if (tipoOriginal === 'Comprar e Enviar' || tipoOriginal === 'Comprar/Enviar') tipoOriginal = 'Comprar/Entregar';
-                
-                // Pega a versão "mascarada" para o filtro também funcionar direito
-                let tipoDisplay = tipoOriginal;
-                if (tipoOriginal === 'Comprar/Entregar') {
-                    tipoDisplay = (t.estagio_atual === 'Aguardando Entrega') ? 'Entregar' : 'Comprar';
-                }
-
-                const matchTipo = tipos.length === 0 || tipos.includes(tipoDisplay) || tipos.includes(tipoOriginal);
+                // O filtro não precisa mais converter a máscara, pois agora as tarefas são inseridas como Comprar ou Entregar limpas
+                const matchTipo = tipos.length === 0 || tipos.includes(t.tipo);
                 
                 return matchBusca && matchTipo;
             });
