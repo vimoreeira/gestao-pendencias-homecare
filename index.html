@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#004785"> <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Home Care">
+    
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <link rel="apple-touch-icon" href="logo.jpg">
+
+    <title>Gestão de Pendências - São Luís Home Care</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary-color: #004785; --secondary-color: #f7a800; --bg-color: #f4f7f6; --text-color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; align-items: flex-start; padding: 20px; min-height: 100vh; margin: 0; box-sizing: border-box; }
+        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 1100px; }
+        .main-title { text-align: center; color: var(--primary-color); font-size: 28px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; }
+        body.is-logged-out .main-title { display: none; }
+        .view { display: none; animation: fadeIn 0.2s ease-in-out; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .home-screen, .login-screen { text-align: center; padding: 20px; }
+        .logo-img { max-width: 250px; margin-bottom: 30px; border-radius: 10px; }
+        .home-buttons { display: flex; flex-direction: column; gap: 15px; max-width: 300px; margin: 0 auto; }
+        .btn-large { padding: 15px; font-size: 18px; border-radius: 8px; }
+        h2 { text-align: center; color: var(--primary-color); margin: 0; }
+        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+        form, .filter-container { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; }
+        .login-form { display: flex; flex-direction: column; max-width: 320px; margin: 20px auto; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; flex: 1 1 200px; }
+        .form-group-full { flex: 1 1 100%; }
+        label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: var(--primary-color); }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 5px; font-weight: normal; font-size: 14px; cursor: pointer; color: var(--text-color); }
+        button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; transition: 0.2s; height: 42px; margin-top: 24px; }
+        button.btn-secondary { background-color: var(--secondary-color); }
+        button.btn-excel { background-color: #27ae60; }
+        button.btn-clear { background-color: #7f8c8d; }
+        button.btn-excluir { background-color: #e74c3c; height: auto; padding: 6px 12px; }
+        button.btn-concluir { background-color: #2ecc71; height: auto; padding: 6px 12px; }
+        button:hover { opacity: 0.8; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+        th { background-color: var(--primary-color); color: white; }
+        .acoes-container { display: flex; gap: 5px; }
+        
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; display: inline-block; white-space: nowrap; }
+        .badge-comprar { background-color: var(--secondary-color); color: #333; }
+        .badge-comprarentregar { background-color: #FFD700; color: #333; }
+        .badge-entregar { background-color: var(--primary-color); }
+        .badge-comunicar { background-color: #8e44ad; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; }
+        #loading { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 3000; justify-content: center; align-items: center; font-weight: bold; color: var(--primary-color); }
+    </style>
+</head>
+<body class="is-logged-out">
+
+    <div id="loading">Carregando...</div>
+
+    <div id="modalExcluir" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Excluir Tarefa</h3>
+            <p id="modalText"></p>
+            <div class="acoes-container" style="justify-content: center; margin-top: 20px;" id="modalButtons"></div>
+            <button class="btn-clear" style="margin-top: 15px;" onclick="fecharModalExcluir()">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="main-title">Gestão de Pendências</h1>
+
+        <div id="loginView" class="view login-screen">
+            <img src="logo.jpg" alt="Logo" class="logo-img">
+            <h2>Acesso Restrito</h2>
+            <form id="loginForm" class="login-form">
+                <input type="email" id="emailLogin" placeholder="E-mail" required>
+                <input type="password" id="senhaLogin" placeholder="Senha" required>
+                <button type="submit">Entrar</button>
+            </form>
+        </div>
+
+        <div id="homeView" class="view home-screen">
+            <img src="logo.jpg" alt="Logo" class="logo-img">
+            <div class="home-buttons">
+                <button class="btn-large" onclick="mudarTela('createView')">Nova Tarefa</button>
+                <button class="btn-large btn-secondary" onclick="mudarTela('listView')">Lista de Tarefas</button>
+                <button onclick="fazerLogout()" style="background: none; color: #e74c3c; border: none; cursor: pointer;">Sair</button>
+            </div>
+        </div>
+
+        <div id="createView" class="view">
+            <div class="header-nav"><button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button><h2>Nova Tarefa</h2></div>
+            <form id="taskForm">
+                <div class="form-group"><label>Paciente</label><input type="text" id="paciente" placeholder="NOME DO PACIENTE" required></div>
+                <div class="form-group"><label>Data</label><input type="date" id="data" required></div>
+                <div class="form-group"><label>Material</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL" required></div>
+                <div class="form-group"><label>Qtd.</label><input type="text" id="quantidade" required></div>
+                <div class="form-group"><label>Tipo</label>
+                    <select id="tarefa" required>
+                        <option value="Comprar">Comprar</option>
+                        <option value="Entregar">Entregar</option>
+                        <option value="Comunicar">Comunicar</option>
+                        <option value="Comprar/Entregar">Comprar/Entregar</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Periodicidade</label>
+                    <select id="periodicidade">
+                        <option value="unica">Única</option>
+                        <option value="diaria">Diária</option>
+                        <option value="semanal">Semanal</option>
+                        <option value="mensal">Mensal</option>
+                    </select>
+                </div>
+                <button type="submit" style="width: 100%;">Salvar</button>
+            </form>
+        </div>
+
+        <div id="listView" class="view">
+            <div class="header-nav">
+                <button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button>
+                <h2>Lista</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-secondary" onclick="mudarTela('createView')" style="margin:0; height:auto; padding:8px 15px;">+ Tarefa</button>
+                    <button class="btn-excel" onclick="exportarExcel()" style="margin:0; height:auto; padding:8px 15px;">Excel</button>
+                </div>
+            </div>
+            
+            <div class="filter-container">
+                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE OU MATERIAL..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
+                
+                <div class="form-group" style="flex: 1 1 150px;">
+                    <label>Data Inicial</label>
+                    <input type="date" id="filterInicio" onchange="filtrarTarefas()">
+                </div>
+                <div class="form-group" style="flex: 1 1 150px;">
+                    <label>Data Final</label>
+                    <input type="date" id="filterFim" onchange="filtrarTarefas()">
+                </div>
+
+                <div class="form-group-full">
+                    <label>Tipos (Marque para filtrar)</label>
+                    <div class="checkbox-group" id="filterTipo">
+                        <label><input type="checkbox" value="Comprar" onchange="filtrarTarefas()"> Comprar</label>
+                        <label><input type="checkbox" value="Entregar" onchange="filtrarTarefas()"> Entregar</label>
+                        <label><input type="checkbox" value="Comunicar" onchange="filtrarTarefas()"> Comunicar</label>
+                        <label><input type="checkbox" value="Comprar/Entregar" onchange="filtrarTarefas()"> Comprar/Entregar</label>
+                    </div>
+                </div>
+                <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
+            </div>
+            
+            <table id="taskTable">
+                <thead><tr><th>Paciente</th><th>Data</th><th>Material</th><th>Qtd</th><th>Tipo</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://mivjoxkazhzqxshdyulr.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pdmpveGthemh6cXhzaGR5dWxyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjQyNjcsImV4cCI6MjA4OTM0MDI2N30.IEIGcwgW_z8CanDfbe1GIhMqYZ2Qg8O1MgGtgxtwAUM';
+        const supabaseApp = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let tarefas = [];
+        let tarefaParaExcluir = null;
+
+        async function verificarSessao() {
+            const { data: { session } } = await supabaseApp.auth.getSession();
+            if (session) { await carregarTarefas(); mudarTela('homeView'); } 
+            else { mudarTela('loginView'); document.getElementById('loading').style.display = 'none'; }
+        }
+
+        async function carregarTarefas() {
+            document.getElementById('loading').style.display = 'flex';
+            const { data, error } = await supabaseApp.from('tarefas').select('*');
+            if (!error) { tarefas = data; renderizarTabela(); }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('loading').style.display = 'flex';
+            const { error } = await supabaseApp.auth.signInWithPassword({
+                email: document.getElementById('emailLogin').value,
+                password: document.getElementById('senhaLogin').value
+            });
+            if (error) { alert('Erro no login'); document.getElementById('loading').style.display = 'none'; }
+        });
+
+        async function fazerLogout() { await supabaseApp.auth.signOut(); window.location.reload(); }
+
+        function renderizarTabela(dados = tarefas) {
+            const tbody = document.querySelector('#taskTable tbody');
+            tbody.innerHTML = '';
+            
+            dados.sort((a, b) => {
+                if (a.status !== b.status) return a.status === 'pendente' ? -1 : 1;
+                return new Date(a.data) - new Date(b.data);
+            }).forEach(t => {
+                const tr = document.createElement('tr');
+                if (t.status === 'concluida') tr.style.opacity = '0.5';
+                
+                let tipoOriginal = t.tipo || 'Comunicar';
+                if (tipoOriginal === 'Comprar e Enviar' || tipoOriginal === 'Comprar / Enviar' || tipoOriginal === 'Comprar/Enviar') {
+                    tipoOriginal = 'Comprar/Entregar';
+                }
+
+                let tipoDisplay = tipoOriginal;
+                let tipoClasse = 'comunicar';
+                
+                // Lógica onde o Comprar/Entregar muda a própria roupa (fantasia)
+                if (tipoOriginal === 'Comprar/Entregar') {
+                    if (t.estagio_atual === 'Aguardando Entrega') {
+                        tipoDisplay = 'Entregar'; // Segundo estágio
+                        tipoClasse = 'entregar';
+                    } else {
+                        tipoDisplay = 'Comprar'; // Primeiro estágio
+                        tipoClasse = 'comprar';
+                    }
+                } else {
+                    if (tipoDisplay === 'Comprar') tipoClasse = 'comprar';
+                    else if (tipoDisplay === 'Entregar') tipoClasse = 'entregar';
+                    else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
+                }
+
+                let botoesAcao = '';
+                if (t.status === 'pendente') {
+                    // Se for do tipo duplo e estiver no primeiro estágio, o botão "Concluído" apenas avança
+                    if (tipoOriginal === 'Comprar/Entregar' && t.estagio_atual !== 'Aguardando Entrega') {
+                        botoesAcao = `<button class="btn-concluir" onclick="avancarEstagio(${t.id})">Concluído</button>`;
+                    } else {
+                        // Se já estiver no segundo estágio, ou for uma tarefa normal, conclui de vez
+                        botoesAcao = `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>`;
+                    }
+                } else {
+                    botoesAcao = '✓';
+                }
+
+                tr.innerHTML = `
+                    <td style="text-transform: uppercase;">${t.paciente}</td>
+                    <td>${t.data.split('-').reverse().join('/')}</td>
+                    <td style="text-transform: uppercase;">${t.material}</td>
+                    <td>${t.quantidade}</td>
+                    <td><span class="badge badge-${tipoClasse}">${tipoDisplay}</span></td>
+                    <td class="acoes-container">
+                        ${botoesAcao}
+                        <button class="btn-excluir" onclick="abrirModalExcluir(${t.id})">X</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function abrirModalExcluir(id) {
+            tarefaParaExcluir = tarefas.find(t => t.id === id);
+            const modal = document.getElementById('modalExcluir');
+            const btns = document.getElementById('modalButtons');
+            document.getElementById('modalText').innerText = `Deseja excluir a tarefa de ${tarefaParaExcluir.paciente}?`;
+            
+            btns.innerHTML = tarefaParaExcluir.periodicidade !== 'unica' ? 
+                `<button class="btn-secondary" onclick="confirmarExclusao('apenas')">Pular Esta</button>
+                 <button class="btn-excluir" onclick="confirmarExclusao('tudo')">Apagar Ciclo</button>` :
+                `<button class="btn-excluir" onclick="confirmarExclusao('tudo')">Confirmar Exclusão</button>`;
+            
+            modal.style.display = 'flex';
+        }
+
+        async function confirmarExclusao(modo) {
+            const idOrigem = tarefaParaExcluir.id;
+            fecharModalExcluir();
+            document.getElementById('loading').style.display = 'flex';
+            if (modo === 'apenas') await gerarProxima(tarefaParaExcluir);
+            await supabaseApp.from('tarefas').delete().eq('id', idOrigem);
+            await carregarTarefas();
+        }
+
+        // Função para o primeiro clique de quem é Comprar/Entregar
+        async function avancarEstagio(id) {
+            document.getElementById('loading').style.display = 'flex';
+            await supabaseApp.from('tarefas').update({ estagio_atual: 'Aguardando Entrega' }).eq('id', id);
+            await carregarTarefas();
+        }
+
+        // Função para fechar qualquer tarefa de vez (incluindo o segundo estágio)
+        async function concluirTarefa(id) {
+            const t = tarefas.find(x => x.id === id);
+            document.getElementById('loading').style.display = 'flex';
+            if (t.periodicidade !== 'unica') await gerarProxima(t);
+            // Salva como finalizado e concluído
+            await supabaseApp.from('tarefas').update({ status: 'concluida', estagio_atual: 'Finalizado', data_conclusao: new Date().toISOString() }).eq('id', id);
+            await carregarTarefas();
+        }
+
+        async function gerarProxima(t) {
+            let data = new Date(t.data + 'T12:00:00');
+            if (t.periodicidade === 'diaria') data.setDate(data.getDate() + 1);
+            if (t.periodicidade === 'semanal') data.setDate(data.getDate() + 7);
+            if (t.periodicidade === 'mensal') data.setMonth(data.getMonth() + 1);
+            if (t.tipo.includes('Comprar')) data.setDate(data.getDate() - 1);
+            while (data.getDay() === 0 || data.getDay() === 6) data.setDate(data.getDate() - 1);
+            
+            // Ao duplicar para o próximo ciclo, ela volta para "Aguardando Compra"
+            const nova = {...t, id: Date.now(), data: data.toISOString().split('T')[0], status: 'pendente', data_conclusao: null, estagio_atual: 'Aguardando Compra'};
+            await supabaseApp.from('tarefas').insert([nova]);
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('loading').style.display = 'flex';
+            
+            const nova = {
+                id: Date.now(), 
+                paciente: document.getElementById('paciente').value.toUpperCase(),
+                data: document.getElementById('data').value, 
+                material: document.getElementById('material').value.toUpperCase(),
+                quantidade: document.getElementById('quantidade').value, 
+                tipo: document.getElementById('tarefa').value,
+                periodicidade: document.getElementById('periodicidade').value, 
+                status: 'pendente',
+                estagio_atual: 'Aguardando Compra' // Inicia no estágio zero
+            };
+            
+            await supabaseApp.from('tarefas').insert([nova]);
+            document.getElementById('taskForm').reset();
+            await carregarTarefas();
+            mudarTela('listView');
+        });
+
+        function exportarExcel() {
+            let csv = "Paciente;Data;Material;Qtd;Tipo;Status\n";
+            tarefas.forEach(t => { csv += `${t.paciente};${t.data};${t.material};${t.quantidade};${t.tipo};${t.status}\n`; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "tarefas_homecare.csv";
+            link.click();
+        }
+
+        function fecharModalExcluir() { document.getElementById('modalExcluir').style.display = 'none'; }
+        function mudarTela(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+        
+        function filtrarTarefas() {
+            const busca = document.getElementById('searchBusca').value.toLowerCase();
+            const dataInicio = document.getElementById('filterInicio').value;
+            const dataFim = document.getElementById('filterFim').value;
+            const tipos = Array.from(document.querySelectorAll('#filterTipo input:checked')).map(i => i.value);
+            
+            const filtradas = tarefas.filter(t => {
+                if (dataInicio && t.data < dataInicio) return false;
+                if (dataFim && t.data > dataFim) return false;
+
+                const matchBusca = t.paciente.toLowerCase().includes(busca) || t.material.toLowerCase().includes(busca);
+                
+                let tipoOriginal = t.tipo;
+                if (tipoOriginal === 'Comprar e Enviar' || tipoOriginal === 'Comprar/Enviar') tipoOriginal = 'Comprar/Entregar';
+                
+                // Pega a versão "mascarada" para o filtro também funcionar direito
+                let tipoDisplay = tipoOriginal;
+                if (tipoOriginal === 'Comprar/Entregar') {
+                    tipoDisplay = (t.estagio_atual === 'Aguardando Entrega') ? 'Entregar' : 'Comprar';
+                }
+
+                const matchTipo = tipos.length === 0 || tipos.includes(tipoDisplay) || tipos.includes(tipoOriginal);
+                
+                return matchBusca && matchTipo;
+            });
+            renderizarTabela(filtradas);
+        }
+
+        function limparFiltro() { 
+            document.getElementById('searchBusca').value = ''; 
+            document.getElementById('filterInicio').value = ''; 
+            document.getElementById('filterFim').value = ''; 
+            document.querySelectorAll('#filterTipo input').forEach(i => i.checked = false); 
+            renderizarTabela(); 
+        }
+
+        verificarSessao();
+        supabaseApp.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN') verificarSessao(); });
+    </script>
+</body>
+</html>
