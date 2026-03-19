@@ -42,12 +42,18 @@
         button.btn-clear { background-color: #7f8c8d; }
         button.btn-excluir { background-color: #e74c3c; height: auto; padding: 6px 12px; }
         button.btn-concluir { background-color: #2ecc71; height: auto; padding: 6px 12px; }
+        button.btn-adiar { background-color: #f39c12; height: auto; padding: 6px 12px; } 
         button:hover { opacity: 0.8; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
         th { background-color: var(--primary-color); color: white; }
-        .acoes-container { display: flex; gap: 5px; }
         
+        /* AJUSTES AQUI PARA OS BOTÕES FICAREM NA MESMA LINHA */
+        .acoes-container { display: flex; gap: 5px; flex-wrap: nowrap; align-items: center; }
+        th:last-child, td:last-child { white-space: nowrap; width: 1%; } 
+        /* --------------------------------------------------- */
+
         .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; display: inline-block; white-space: nowrap; }
         .badge-comprar { background-color: var(--secondary-color); color: #333; }
         .badge-comprarentregar { background-color: #FFD700; color: #333; }
@@ -69,6 +75,21 @@
             <p id="modalText"></p>
             <div class="acoes-container" style="justify-content: center; margin-top: 20px;" id="modalButtons"></div>
             <button class="btn-clear" style="margin-top: 15px;" onclick="fecharModalExcluir()">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modalAdiar" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Adiar Tarefa</h3>
+            <p id="modalAdiarText"></p>
+            <div class="form-group" style="margin-top: 15px; text-align: left;">
+                <label>Nova Data</label>
+                <input type="date" id="novaDataAdiar" required>
+            </div>
+            <div class="acoes-container" style="justify-content: center; margin-top: 20px;">
+                <button class="btn-concluir" onclick="confirmarAdiar()">Salvar Nova Data</button>
+            </div>
+            <button class="btn-clear" style="margin-top: 15px;" onclick="fecharModalAdiar()">Cancelar</button>
         </div>
     </div>
 
@@ -177,6 +198,7 @@
 
         let tarefas = [];
         let tarefaParaExcluir = null;
+        let tarefaParaAdiar = null;
 
         async function verificarSessao() {
             const { data: { session } } = await supabaseApp.auth.getSession();
@@ -214,7 +236,6 @@
                 const tr = document.createElement('tr');
                 if (t.status === 'concluida') tr.style.opacity = '0.5';
                 
-                // Mantemos o fallback para não sumir com tarefas antigas já salvas no banco
                 let tipoDisplay = t.tipo || 'Comunicar';
                 if (tipoDisplay === 'Comprar e Enviar' || tipoDisplay === 'Comprar / Enviar' || tipoDisplay === 'Comprar/Enviar') {
                     tipoDisplay = 'Comprar/Entregar';
@@ -228,7 +249,10 @@
                 
                 let botoesAcao = '';
                 if (t.status === 'pendente') {
-                    botoesAcao = `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>`;
+                    botoesAcao = `
+                        <button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>
+                        <button class="btn-adiar" onclick="abrirModalAdiar(${t.id})">Adiar</button>
+                    `;
                 } else {
                     botoesAcao = '✓';
                 }
@@ -271,6 +295,32 @@
             await carregarTarefas();
         }
 
+        function abrirModalAdiar(id) {
+            tarefaParaAdiar = tarefas.find(t => t.id === id);
+            document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}\nMaterial: ${tarefaParaAdiar.material}`;
+            document.getElementById('novaDataAdiar').value = tarefaParaAdiar.data; 
+            document.getElementById('modalAdiar').style.display = 'flex';
+        }
+
+        function fecharModalAdiar() { 
+            document.getElementById('modalAdiar').style.display = 'none'; 
+        }
+
+        async function confirmarAdiar() {
+            const novaData = document.getElementById('novaDataAdiar').value;
+            if (!novaData) {
+                alert('Por favor, selecione uma data válida.');
+                return;
+            }
+            
+            const idOrigem = tarefaParaAdiar.id;
+            fecharModalAdiar();
+            document.getElementById('loading').style.display = 'flex';
+            
+            await supabaseApp.from('tarefas').update({ data: novaData }).eq('id', idOrigem);
+            await carregarTarefas();
+        }
+
         async function concluirTarefa(id) {
             const t = tarefas.find(x => x.id === id);
             document.getElementById('loading').style.display = 'flex';
@@ -291,7 +341,6 @@
             await supabaseApp.from('tarefas').insert([nova]);
         }
 
-        // --- LÓGICA DO NOVO CAMPO DE DATA ---
         document.getElementById('tarefa').addEventListener('change', function() {
             const grupoEntrega = document.getElementById('grupoDataEntrega');
             const dataEntregaInput = document.getElementById('dataEntrega');
@@ -322,7 +371,6 @@
             
             const baseNova = { paciente, material, quantidade, periodicidade, status: 'pendente' };
 
-            // Se for do tipo duplo, criamos um array com as duas tarefas
             if (tipo === 'Comprar/Entregar') {
                 const dataEntrega = document.getElementById('dataEntrega').value;
                 await supabaseApp.from('tarefas').insert([
@@ -330,13 +378,11 @@
                     { ...baseNova, id: Date.now() + 1, data: dataEntrega, tipo: 'Entregar' }
                 ]);
             } else {
-                // Tarefa normal (única)
                 await supabaseApp.from('tarefas').insert([
                     { ...baseNova, id: Date.now(), data: dataPrincipal, tipo: tipo }
                 ]);
             }
             
-            // Reseta o formulário e a visualização
             document.getElementById('taskForm').reset();
             document.getElementById('grupoDataEntrega').style.display = 'none';
             document.getElementById('labelDataPrincipal').innerText = 'Data';
@@ -369,8 +415,6 @@
                 if (dataFim && t.data > dataFim) return false;
 
                 const matchBusca = t.paciente.toLowerCase().includes(busca) || t.material.toLowerCase().includes(busca);
-                
-                // O filtro não precisa mais converter a máscara, pois agora as tarefas são inseridas como Comprar ou Entregar limpas
                 const matchTipo = tipos.length === 0 || tipos.includes(t.tipo);
                 
                 return matchBusca && matchTipo;
