@@ -57,7 +57,7 @@
         .badge-comprarentregar { background-color: #FFD700; color: #333; }
         .badge-entregar { background-color: var(--primary-color); }
         .badge-comunicar { background-color: #8e44ad; }
-        .badge-realizar { background-color: #1abc9c; } /* Nova cor para Realizar */
+        .badge-realizar { background-color: #1abc9c; } 
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; }
@@ -182,6 +182,16 @@
                         <label><input type="checkbox" value="Realizar" onchange="filtrarTarefas()"> Realizar</label>
                     </div>
                 </div>
+
+                <div class="form-group-full" style="margin-top: 5px;">
+                    <div class="checkbox-group">
+                        <label style="color: #e74c3c; font-weight: bold; padding-top: 5px;">
+                            <input type="checkbox" id="ocultarConcluidas" checked onchange="filtrarTarefas()"> 
+                            Ocultar tarefas já concluídas
+                        </label>
+                    </div>
+                </div>
+
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
             </div>
             
@@ -210,7 +220,10 @@
         async function carregarTarefas() {
             document.getElementById('loading').style.display = 'flex';
             const { data, error } = await supabaseApp.from('tarefas').select('*');
-            if (!error) { tarefas = data; renderizarTabela(); }
+            if (!error) { 
+                tarefas = data; 
+                filtrarTarefas(); // Chama o filtro direto para aplicar a regra de ocultar concluídas
+            }
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -406,13 +419,18 @@
         function fecharModalExcluir() { document.getElementById('modalExcluir').style.display = 'none'; }
         function mudarTela(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
         
+        // --- FUNÇÃO DE FILTRO ATUALIZADA ---
         function filtrarTarefas() {
             const busca = document.getElementById('searchBusca').value.toLowerCase();
             const dataInicio = document.getElementById('filterInicio').value;
             const dataFim = document.getElementById('filterFim').value;
             const tipos = Array.from(document.querySelectorAll('#filterTipo input:checked')).map(i => i.value);
+            const ocultarConcluidas = document.getElementById('ocultarConcluidas').checked; // Lê a caixinha
             
             const filtradas = tarefas.filter(t => {
+                // Se a caixinha estiver marcada e a tarefa estiver concluída, ela não aparece
+                if (ocultarConcluidas && t.status === 'concluida') return false;
+
                 if (dataInicio && t.data < dataInicio) return false;
                 if (dataFim && t.data > dataFim) return false;
 
@@ -429,7 +447,8 @@
             document.getElementById('filterInicio').value = ''; 
             document.getElementById('filterFim').value = ''; 
             document.querySelectorAll('#filterTipo input').forEach(i => i.checked = false); 
-            renderizarTabela(); 
+            document.getElementById('ocultarConcluidas').checked = true; // Volta para o padrão de esconder
+            filtrarTarefas(); 
         }
 
         verificarSessao();
