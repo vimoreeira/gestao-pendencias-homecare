@@ -49,16 +49,15 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
         th { background-color: var(--primary-color); color: white; }
         
-        /* AJUSTES AQUI PARA OS BOTÕES FICAREM NA MESMA LINHA */
         .acoes-container { display: flex; gap: 5px; flex-wrap: nowrap; align-items: center; }
         th:last-child, td:last-child { white-space: nowrap; width: 1%; } 
-        /* --------------------------------------------------- */
 
         .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; display: inline-block; white-space: nowrap; }
         .badge-comprar { background-color: var(--secondary-color); color: #333; }
         .badge-comprarentregar { background-color: #FFD700; color: #333; }
         .badge-entregar { background-color: var(--primary-color); }
         .badge-comunicar { background-color: #8e44ad; }
+        .badge-realizar { background-color: #1abc9c; } /* Nova cor para Realizar */
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; }
@@ -127,7 +126,7 @@
                     <input type="date" id="dataEntrega">
                 </div>
 
-                <div class="form-group"><label>Material</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL" required></div>
+                <div class="form-group"><label>Material/Tarefa</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL/TAREFA" required></div>
                 <div class="form-group"><label>Qtd.</label><input type="text" id="quantidade" required></div>
                 
                 <div class="form-group"><label>Tipo</label>
@@ -135,6 +134,7 @@
                         <option value="Comprar">Comprar</option>
                         <option value="Entregar">Entregar</option>
                         <option value="Comunicar">Comunicar</option>
+                        <option value="Realizar">Realizar</option>
                         <option value="Comprar/Entregar">Comprar/Entregar</option>
                     </select>
                 </div>
@@ -162,7 +162,7 @@
             </div>
             
             <div class="filter-container">
-                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE OU MATERIAL..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
+                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE OU MATERIAL/TAREFA..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
                 
                 <div class="form-group" style="flex: 1 1 150px;">
                     <label>Data Inicial</label>
@@ -179,13 +179,14 @@
                         <label><input type="checkbox" value="Comprar" onchange="filtrarTarefas()"> Comprar</label>
                         <label><input type="checkbox" value="Entregar" onchange="filtrarTarefas()"> Entregar</label>
                         <label><input type="checkbox" value="Comunicar" onchange="filtrarTarefas()"> Comunicar</label>
+                        <label><input type="checkbox" value="Realizar" onchange="filtrarTarefas()"> Realizar</label>
                     </div>
                 </div>
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
             </div>
             
             <table id="taskTable">
-                <thead><tr><th>Paciente</th><th>Data</th><th>Material</th><th>Qtd</th><th>Tipo</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Paciente</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Ações</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -245,6 +246,7 @@
                 if (tipoDisplay === 'Comprar') tipoClasse = 'comprar';
                 else if (tipoDisplay === 'Entregar') tipoClasse = 'entregar';
                 else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
+                else if (tipoDisplay === 'Realizar') tipoClasse = 'realizar';
                 else if (tipoDisplay === 'Comprar/Entregar') tipoClasse = 'comprarentregar';
                 
                 let botoesAcao = '';
@@ -297,7 +299,7 @@
 
         function abrirModalAdiar(id) {
             tarefaParaAdiar = tarefas.find(t => t.id === id);
-            document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}\nMaterial: ${tarefaParaAdiar.material}`;
+            document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}\nMaterial/Tarefa: ${tarefaParaAdiar.material}`;
             document.getElementById('novaDataAdiar').value = tarefaParaAdiar.data; 
             document.getElementById('modalAdiar').style.display = 'flex';
         }
@@ -392,7 +394,7 @@
         });
 
         function exportarExcel() {
-            let csv = "Paciente;Data;Material;Qtd;Tipo;Status\n";
+            let csv = "Paciente;Data;Material/Tarefa;Qtd;Tipo;Status\n";
             tarefas.forEach(t => { csv += `${t.paciente};${t.data};${t.material};${t.quantidade};${t.tipo};${t.status}\n`; });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
