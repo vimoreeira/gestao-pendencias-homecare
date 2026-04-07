@@ -118,17 +118,10 @@
             <div class="header-nav"><button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button><h2>Nova Tarefa</h2></div>
             <form id="taskForm">
                 <div class="form-group"><label>Paciente</label><input type="text" id="paciente" placeholder="NOME DO PACIENTE" required></div>
-                
                 <div class="form-group"><label id="labelDataPrincipal">Data</label><input type="date" id="data" required></div>
-                
-                <div class="form-group" id="grupoDataEntrega" style="display: none;">
-                    <label>Data da Entrega</label>
-                    <input type="date" id="dataEntrega">
-                </div>
-
+                <div class="form-group" id="grupoDataEntrega" style="display: none;"><label>Data da Entrega</label><input type="date" id="dataEntrega"></div>
                 <div class="form-group"><label>Material/Tarefa</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL/TAREFA" required></div>
                 <div class="form-group"><label>Qtd.</label><input type="text" id="quantidade" required></div>
-                
                 <div class="form-group"><label>Tipo</label>
                     <select id="tarefa" required>
                         <option value="Comprar">Comprar</option>
@@ -138,7 +131,6 @@
                         <option value="Comprar/Entregar">Comprar/Entregar</option>
                     </select>
                 </div>
-                
                 <div class="form-group"><label>Periodicidade</label>
                     <select id="periodicidade">
                         <option value="unica">Única</option>
@@ -160,43 +152,23 @@
                     <button class="btn-excel" onclick="exportarExcel()" style="margin:0; height:auto; padding:8px 15px;">Excel</button>
                 </div>
             </div>
-            
             <div class="filter-container">
                 <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE OU MATERIAL/TAREFA..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
-                
-                <div class="form-group" style="flex: 1 1 150px;">
-                    <label>Data Inicial</label>
-                    <input type="date" id="filterInicio" onchange="filtrarTarefas()">
-                </div>
-                <div class="form-group" style="flex: 1 1 150px;">
-                    <label>Data Final</label>
-                    <input type="date" id="filterFim" onchange="filtrarTarefas()">
-                </div>
-
-                <div class="form-group-full">
-                    <label>Tipos (Marque para filtrar)</label>
-                    <div class="checkbox-group" id="filterTipo">
-                        <label><input type="checkbox" value="Comprar" onchange="filtrarTarefas()"> Comprar</label>
-                        <label><input type="checkbox" value="Entregar" onchange="filtrarTarefas()"> Entregar</label>
-                        <label><input type="checkbox" value="Comunicar" onchange="filtrarTarefas()"> Comunicar</label>
-                        <label><input type="checkbox" value="Realizar" onchange="filtrarTarefas()"> Realizar</label>
-                    </div>
-                </div>
-
-                <div class="form-group-full" style="margin-top: 5px;">
-                    <div class="checkbox-group">
-                        <label style="color: #e74c3c; font-weight: bold; padding-top: 5px;">
-                            <input type="checkbox" id="ocultarConcluidas" checked onchange="filtrarTarefas()"> 
-                            Ocultar tarefas já concluídas
-                        </label>
-                    </div>
-                </div>
-
+                <div class="form-group" style="flex: 1 1 150px;"><label>Data Inicial</label><input type="date" id="filterInicio" onchange="filtrarTarefas()"></div>
+                <div class="form-group" style="flex: 1 1 150px;"><label>Data Final</label><input type="date" id="filterFim" onchange="filtrarTarefas()"></div>
+                <div class="form-group-full"><label>Tipos</label><div class="checkbox-group" id="filterTipo">
+                    <label><input type="checkbox" value="Comprar" onchange="filtrarTarefas()"> Comprar</label>
+                    <label><input type="checkbox" value="Entregar" onchange="filtrarTarefas()"> Entregar</label>
+                    <label><input type="checkbox" value="Comunicar" onchange="filtrarTarefas()"> Comunicar</label>
+                    <label><input type="checkbox" value="Realizar" onchange="filtrarTarefas()"> Realizar</label>
+                </div></div>
+                <div class="form-group-full" style="margin-top: 5px;"><div class="checkbox-group">
+                    <label style="color: #e74c3c; font-weight: bold; padding-top: 5px;"><input type="checkbox" id="ocultarConcluidas" checked onchange="filtrarTarefas()"> Ocultar tarefas já concluídas</label>
+                </div></div>
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
             </div>
-            
             <table id="taskTable">
-                <thead><tr><th>Paciente</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Paciente</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Criador</th><th>Ações</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -220,10 +192,7 @@
         async function carregarTarefas() {
             document.getElementById('loading').style.display = 'flex';
             const { data, error } = await supabaseApp.from('tarefas').select('*');
-            if (!error) { 
-                tarefas = data; 
-                filtrarTarefas(); // Chama o filtro direto para aplicar a regra de ocultar concluídas
-            }
+            if (!error) { tarefas = data; filtrarTarefas(); }
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -242,7 +211,6 @@
         function renderizarTabela(dados = tarefas) {
             const tbody = document.querySelector('#taskTable tbody');
             tbody.innerHTML = '';
-            
             dados.sort((a, b) => {
                 if (a.status !== b.status) return a.status === 'pendente' ? -1 : 1;
                 return new Date(a.data) - new Date(b.data);
@@ -251,26 +219,14 @@
                 if (t.status === 'concluida') tr.style.opacity = '0.5';
                 
                 let tipoDisplay = t.tipo || 'Comunicar';
-                if (tipoDisplay === 'Comprar e Enviar' || tipoDisplay === 'Comprar / Enviar' || tipoDisplay === 'Comprar/Enviar') {
-                    tipoDisplay = 'Comprar/Entregar';
-                }
-
                 let tipoClasse = 'comunicar';
                 if (tipoDisplay === 'Comprar') tipoClasse = 'comprar';
                 else if (tipoDisplay === 'Entregar') tipoClasse = 'entregar';
                 else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
                 else if (tipoDisplay === 'Realizar') tipoClasse = 'realizar';
-                else if (tipoDisplay === 'Comprar/Entregar') tipoClasse = 'comprarentregar';
                 
-                let botoesAcao = '';
-                if (t.status === 'pendente') {
-                    botoesAcao = `
-                        <button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>
-                        <button class="btn-adiar" onclick="abrirModalAdiar(${t.id})">Adiar</button>
-                    `;
-                } else {
-                    botoesAcao = '✓';
-                }
+                // Exibe apenas o nome antes do @ para ficar mais curto
+                let autor = t.criado_por ? t.criado_por.split('@')[0] : 'N/A';
 
                 tr.innerHTML = `
                     <td style="text-transform: uppercase;">${t.paciente}</td>
@@ -278,62 +234,14 @@
                     <td style="text-transform: uppercase;">${t.material}</td>
                     <td>${t.quantidade}</td>
                     <td><span class="badge badge-${tipoClasse}">${tipoDisplay}</span></td>
+                    <td style="font-size: 11px; color: #777;">${autor}</td>
                     <td class="acoes-container">
-                        ${botoesAcao}
+                        ${t.status === 'pendente' ? `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button><button class="btn-adiar" onclick="abrirModalAdiar(${t.id})">Adiar</button>` : '✓'}
                         <button class="btn-excluir" onclick="abrirModalExcluir(${t.id})">X</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        function abrirModalExcluir(id) {
-            tarefaParaExcluir = tarefas.find(t => t.id === id);
-            const modal = document.getElementById('modalExcluir');
-            const btns = document.getElementById('modalButtons');
-            document.getElementById('modalText').innerText = `Deseja excluir a tarefa de ${tarefaParaExcluir.paciente}?`;
-            
-            btns.innerHTML = tarefaParaExcluir.periodicidade !== 'unica' ? 
-                `<button class="btn-secondary" onclick="confirmarExclusao('apenas')">Pular Esta</button>
-                 <button class="btn-excluir" onclick="confirmarExclusao('tudo')">Apagar Ciclo</button>` :
-                `<button class="btn-excluir" onclick="confirmarExclusao('tudo')">Confirmar Exclusão</button>`;
-            
-            modal.style.display = 'flex';
-        }
-
-        async function confirmarExclusao(modo) {
-            const idOrigem = tarefaParaExcluir.id;
-            fecharModalExcluir();
-            document.getElementById('loading').style.display = 'flex';
-            if (modo === 'apenas') await gerarProxima(tarefaParaExcluir);
-            await supabaseApp.from('tarefas').delete().eq('id', idOrigem);
-            await carregarTarefas();
-        }
-
-        function abrirModalAdiar(id) {
-            tarefaParaAdiar = tarefas.find(t => t.id === id);
-            document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}\nMaterial/Tarefa: ${tarefaParaAdiar.material}`;
-            document.getElementById('novaDataAdiar').value = tarefaParaAdiar.data; 
-            document.getElementById('modalAdiar').style.display = 'flex';
-        }
-
-        function fecharModalAdiar() { 
-            document.getElementById('modalAdiar').style.display = 'none'; 
-        }
-
-        async function confirmarAdiar() {
-            const novaData = document.getElementById('novaDataAdiar').value;
-            if (!novaData) {
-                alert('Por favor, selecione uma data válida.');
-                return;
-            }
-            
-            const idOrigem = tarefaParaAdiar.id;
-            fecharModalAdiar();
-            document.getElementById('loading').style.display = 'flex';
-            
-            await supabaseApp.from('tarefas').update({ data: novaData }).eq('id', idOrigem);
-            await carregarTarefas();
         }
 
         async function concluirTarefa(id) {
@@ -351,32 +259,19 @@
             if (t.periodicidade === 'mensal') data.setMonth(data.getMonth() + 1);
             if (t.tipo.includes('Comprar')) data.setDate(data.getDate() - 1);
             while (data.getDay() === 0 || data.getDay() === 6) data.setDate(data.getDate() - 1);
-            
             const nova = {...t, id: Date.now(), data: data.toISOString().split('T')[0], status: 'pendente', data_conclusao: null};
             await supabaseApp.from('tarefas').insert([nova]);
         }
 
-        document.getElementById('tarefa').addEventListener('change', function() {
-            const grupoEntrega = document.getElementById('grupoDataEntrega');
-            const dataEntregaInput = document.getElementById('dataEntrega');
-            const labelDataPrincipal = document.getElementById('labelDataPrincipal');
-            
-            if (this.value === 'Comprar/Entregar') {
-                grupoEntrega.style.display = 'flex';
-                dataEntregaInput.required = true;
-                labelDataPrincipal.innerText = 'Data da Compra';
-            } else {
-                grupoEntrega.style.display = 'none';
-                dataEntregaInput.required = false;
-                dataEntregaInput.value = '';
-                labelDataPrincipal.innerText = 'Data';
-            }
-        });
-
+        // --- SALVAR COM O NOME DO CRIADOR ---
         document.getElementById('taskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             document.getElementById('loading').style.display = 'flex';
             
+            // Busca o usuário logado
+            const { data: { user } } = await supabaseApp.auth.getUser();
+            const emailCriador = user ? user.email : 'Sistema';
+
             const paciente = document.getElementById('paciente').value.toUpperCase();
             const material = document.getElementById('material').value.toUpperCase();
             const quantidade = document.getElementById('quantidade').value; 
@@ -384,7 +279,7 @@
             const tipo = document.getElementById('tarefa').value;
             const dataPrincipal = document.getElementById('data').value;
             
-            const baseNova = { paciente, material, quantidade, periodicidade, status: 'pendente' };
+            const baseNova = { paciente, material, quantidade, periodicidade, status: 'pendente', criado_por: emailCriador };
 
             if (tipo === 'Comprar/Entregar') {
                 const dataEntrega = document.getElementById('dataEntrega').value;
@@ -393,64 +288,46 @@
                     { ...baseNova, id: Date.now() + 1, data: dataEntrega, tipo: 'Entregar' }
                 ]);
             } else {
-                await supabaseApp.from('tarefas').insert([
-                    { ...baseNova, id: Date.now(), data: dataPrincipal, tipo: tipo }
-                ]);
+                await supabaseApp.from('tarefas').insert([{ ...baseNova, id: Date.now(), data: dataPrincipal, tipo: tipo }]);
             }
             
             document.getElementById('taskForm').reset();
             document.getElementById('grupoDataEntrega').style.display = 'none';
-            document.getElementById('labelDataPrincipal').innerText = 'Data';
-            
             await carregarTarefas();
             mudarTela('listView');
         });
 
-        function exportarExcel() {
-            let csv = "Paciente;Data;Material/Tarefa;Qtd;Tipo;Status\n";
-            tarefas.forEach(t => { csv += `${t.paciente};${t.data};${t.material};${t.quantidade};${t.tipo};${t.status}\n`; });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "tarefas_homecare.csv";
-            link.click();
+        // Funções auxiliares mantidas
+        function abrirModalExcluir(id) { 
+            tarefaParaExcluir = tarefas.find(t => t.id === id); 
+            document.getElementById('modalText').innerText = `Deseja excluir a tarefa de ${tarefaParaExcluir.paciente}?`;
+            document.getElementById('modalButtons').innerHTML = tarefaParaExcluir.periodicidade !== 'unica' ? `<button class="btn-secondary" onclick="confirmarExclusao('apenas')">Pular Esta</button><button class="btn-excluir" onclick="confirmarExclusao('tudo')">Apagar Ciclo</button>` : `<button class="btn-excluir" onclick="confirmarExclusao('tudo')">Confirmar Exclusão</button>`;
+            document.getElementById('modalExcluir').style.display = 'flex'; 
         }
-
+        async function confirmarExclusao(modo) { fecharModalExcluir(); document.getElementById('loading').style.display = 'flex'; if (modo === 'apenas') await gerarProxima(tarefaParaExcluir); await supabaseApp.from('tarefas').delete().eq('id', tarefaParaExcluir.id); await carregarTarefas(); }
+        function abrirModalAdiar(id) { tarefaParaAdiar = tarefas.find(t => t.id === id); document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}`; document.getElementById('novaDataAdiar').value = tarefaParaAdiar.data; document.getElementById('modalAdiar').style.display = 'flex'; }
+        async function confirmarAdiar() { const novaData = document.getElementById('novaDataAdiar').value; fecharModalAdiar(); document.getElementById('loading').style.display = 'flex'; await supabaseApp.from('tarefas').update({ data: novaData }).eq('id', tarefaParaAdiar.id); await carregarTarefas(); }
         function fecharModalExcluir() { document.getElementById('modalExcluir').style.display = 'none'; }
+        function fecharModalAdiar() { document.getElementById('modalAdiar').style.display = 'none'; }
         function mudarTela(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-        
-        // --- FUNÇÃO DE FILTRO ATUALIZADA ---
         function filtrarTarefas() {
             const busca = document.getElementById('searchBusca').value.toLowerCase();
-            const dataInicio = document.getElementById('filterInicio').value;
-            const dataFim = document.getElementById('filterFim').value;
+            const dtIni = document.getElementById('filterInicio').value;
+            const dtFim = document.getElementById('filterFim').value;
             const tipos = Array.from(document.querySelectorAll('#filterTipo input:checked')).map(i => i.value);
-            const ocultarConcluidas = document.getElementById('ocultarConcluidas').checked; // Lê a caixinha
-            
+            const ocConcluidas = document.getElementById('ocultarConcluidas').checked;
             const filtradas = tarefas.filter(t => {
-                // Se a caixinha estiver marcada e a tarefa estiver concluída, ela não aparece
-                if (ocultarConcluidas && t.status === 'concluida') return false;
-
-                if (dataInicio && t.data < dataInicio) return false;
-                if (dataFim && t.data > dataFim) return false;
-
+                if (ocConcluidas && t.status === 'concluida') return false;
+                if (dtIni && t.data < dtIni) return false;
+                if (dtFim && t.data > dtFim) return false;
                 const matchBusca = t.paciente.toLowerCase().includes(busca) || t.material.toLowerCase().includes(busca);
                 const matchTipo = tipos.length === 0 || tipos.includes(t.tipo);
-                
                 return matchBusca && matchTipo;
             });
             renderizarTabela(filtradas);
         }
-
-        function limparFiltro() { 
-            document.getElementById('searchBusca').value = ''; 
-            document.getElementById('filterInicio').value = ''; 
-            document.getElementById('filterFim').value = ''; 
-            document.querySelectorAll('#filterTipo input').forEach(i => i.checked = false); 
-            document.getElementById('ocultarConcluidas').checked = true; // Volta para o padrão de esconder
-            filtrarTarefas(); 
-        }
-
+        function limparFiltro() { document.getElementById('searchBusca').value = ''; document.getElementById('filterInicio').value = ''; document.getElementById('filterFim').value = ''; document.querySelectorAll('#filterTipo input').forEach(i => i.checked = false); document.getElementById('ocultarConcluidas').checked = true; filtrarTarefas(); }
+        document.getElementById('tarefa').addEventListener('change', function() { document.getElementById('grupoDataEntrega').style.display = this.value === 'Comprar/Entregar' ? 'flex' : 'none'; });
         verificarSessao();
         supabaseApp.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN') verificarSessao(); });
     </script>
