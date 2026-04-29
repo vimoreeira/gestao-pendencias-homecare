@@ -118,6 +118,9 @@
             <div class="header-nav"><button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button><h2>Nova Tarefa</h2></div>
             <form id="taskForm">
                 <div class="form-group"><label>Paciente</label><input type="text" id="paciente" placeholder="NOME DO PACIENTE" required></div>
+                
+                <div class="form-group"><label>Nº da Requisição (Opcional)</label><input type="text" id="numRequisicao" placeholder="Nº DA REQUISIÇÃO"></div>
+                
                 <div class="form-group"><label id="labelDataPrincipal">Data</label><input type="date" id="data" required></div>
                 <div class="form-group" id="grupoDataEntrega" style="display: none;"><label>Data da Entrega</label><input type="date" id="dataEntrega"></div>
                 <div class="form-group"><label>Material/Tarefa</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL/TAREFA" required></div>
@@ -153,7 +156,7 @@
                 </div>
             </div>
             <div class="filter-container">
-                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE OU MATERIAL/TAREFA..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
+                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE, MATERIAL OU REQUISIÇÃO..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
                 <div class="form-group" style="flex: 1 1 150px;"><label>Data Inicial</label><input type="date" id="filterInicio" onchange="filtrarTarefas()"></div>
                 <div class="form-group" style="flex: 1 1 150px;"><label>Data Final</label><input type="date" id="filterFim" onchange="filtrarTarefas()"></div>
                 <div class="form-group-full"><label>Tipos</label><div class="checkbox-group" id="filterTipo">
@@ -168,7 +171,7 @@
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
             </div>
             <table id="taskTable">
-                <thead><tr><th>Paciente</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Criador</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Paciente</th><th>Req.</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Criador</th><th>Ações</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -225,11 +228,12 @@
                 else if (tipoDisplay === 'Comunicar') tipoClasse = 'comunicar';
                 else if (tipoDisplay === 'Realizar') tipoClasse = 'realizar';
                 
-                // Exibe apenas o nome antes do @ para ficar mais curto
                 let autor = t.criado_por ? t.criado_por.split('@')[0] : 'N/A';
+                let reqDisplay = t.num_requisicao ? t.num_requisicao : '-'; // Mostra traço se vazio
 
                 tr.innerHTML = `
                     <td style="text-transform: uppercase;">${t.paciente}</td>
+                    <td style="text-transform: uppercase;">${reqDisplay}</td>
                     <td>${t.data.split('-').reverse().join('/')}</td>
                     <td style="text-transform: uppercase;">${t.material}</td>
                     <td>${t.quantidade}</td>
@@ -263,23 +267,30 @@
             await supabaseApp.from('tarefas').insert([nova]);
         }
 
-        // --- SALVAR COM O NOME DO CRIADOR ---
         document.getElementById('taskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             document.getElementById('loading').style.display = 'flex';
             
-            // Busca o usuário logado
             const { data: { user } } = await supabaseApp.auth.getUser();
             const emailCriador = user ? user.email : 'Sistema';
 
             const paciente = document.getElementById('paciente').value.toUpperCase();
+            const numRequisicao = document.getElementById('numRequisicao').value.toUpperCase(); // Captura a requisição
             const material = document.getElementById('material').value.toUpperCase();
             const quantidade = document.getElementById('quantidade').value; 
             const periodicidade = document.getElementById('periodicidade').value; 
             const tipo = document.getElementById('tarefa').value;
             const dataPrincipal = document.getElementById('data').value;
             
-            const baseNova = { paciente, material, quantidade, periodicidade, status: 'pendente', criado_por: emailCriador };
+            const baseNova = { 
+                paciente, 
+                num_requisicao: numRequisicao, 
+                material, 
+                quantidade, 
+                periodicidade, 
+                status: 'pendente', 
+                criado_por: emailCriador 
+            };
 
             if (tipo === 'Comprar/Entregar') {
                 const dataEntrega = document.getElementById('dataEntrega').value;
@@ -297,7 +308,6 @@
             mudarTela('listView');
         });
 
-        // Funções auxiliares mantidas
         function abrirModalExcluir(id) { 
             tarefaParaExcluir = tarefas.find(t => t.id === id); 
             document.getElementById('modalText').innerText = `Deseja excluir a tarefa de ${tarefaParaExcluir.paciente}?`;
@@ -310,6 +320,7 @@
         function fecharModalExcluir() { document.getElementById('modalExcluir').style.display = 'none'; }
         function fecharModalAdiar() { document.getElementById('modalAdiar').style.display = 'none'; }
         function mudarTela(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+        
         function filtrarTarefas() {
             const busca = document.getElementById('searchBusca').value.toLowerCase();
             const dtIni = document.getElementById('filterInicio').value;
@@ -320,14 +331,36 @@
                 if (ocConcluidas && t.status === 'concluida') return false;
                 if (dtIni && t.data < dtIni) return false;
                 if (dtFim && t.data > dtFim) return false;
-                const matchBusca = t.paciente.toLowerCase().includes(busca) || t.material.toLowerCase().includes(busca);
+                
+                // Agora o campo de busca também procura pelo número da requisição
+                const numReqString = t.num_requisicao ? t.num_requisicao.toLowerCase() : '';
+                const matchBusca = t.paciente.toLowerCase().includes(busca) || 
+                                   t.material.toLowerCase().includes(busca) ||
+                                   numReqString.includes(busca);
+                                   
                 const matchTipo = tipos.length === 0 || tipos.includes(t.tipo);
                 return matchBusca && matchTipo;
             });
             renderizarTabela(filtradas);
         }
+
         function limparFiltro() { document.getElementById('searchBusca').value = ''; document.getElementById('filterInicio').value = ''; document.getElementById('filterFim').value = ''; document.querySelectorAll('#filterTipo input').forEach(i => i.checked = false); document.getElementById('ocultarConcluidas').checked = true; filtrarTarefas(); }
         document.getElementById('tarefa').addEventListener('change', function() { document.getElementById('grupoDataEntrega').style.display = this.value === 'Comprar/Entregar' ? 'flex' : 'none'; });
+        
+        function exportarExcel() {
+            let csv = "Paciente;Num Requisicao;Data;Material/Tarefa;Qtd;Tipo;Criador;Status\n";
+            tarefas.forEach(t => { 
+                let req = t.num_requisicao ? t.num_requisicao : '';
+                let autor = t.criado_por ? t.criado_por.split('@')[0] : '';
+                csv += `${t.paciente};${req};${t.data};${t.material};${t.quantidade};${t.tipo};${autor};${t.status}\n`; 
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "tarefas_homecare.csv";
+            link.click();
+        }
+
         verificarSessao();
         supabaseApp.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN') verificarSessao(); });
     </script>
