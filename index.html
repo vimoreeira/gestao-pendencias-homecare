@@ -34,9 +34,7 @@
         .form-group { display: flex; flex-direction: column; flex: 1 1 200px; }
         .form-group-full { flex: 1 1 100%; }
         
-        /* CORREÇÃO DO ESPAÇAMENTO NOS MODAIS */
         .modal-content .form-group { flex: none; margin-bottom: 10px; }
-        /* ---------------------------------- */
 
         label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: var(--primary-color); }
         input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
@@ -48,7 +46,6 @@
         button.btn-clear { background-color: #7f8c8d; }
         button.btn-excluir { background-color: #e74c3c; height: auto; padding: 6px 12px; }
         button.btn-concluir { background-color: #2ecc71; height: auto; padding: 6px 12px; }
-        button.btn-adiar { background-color: #f39c12; height: auto; padding: 6px 12px; } 
         button.btn-editar { background-color: #3498db; height: auto; padding: 6px 12px; } 
         button:hover { opacity: 0.8; }
         
@@ -84,32 +81,16 @@
         </div>
     </div>
 
-    <div id="modalAdiar" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Adiar Tarefa</h3>
-            <p id="modalAdiarText"></p>
-            <div class="form-group" style="text-align: left;">
-                <label>Nova Data</label>
-                <input type="date" id="novaDataAdiar" required>
-            </div>
-            <div class="acoes-container" style="justify-content: center; margin-top: 20px;">
-                <button class="btn-concluir" onclick="confirmarAdiar()">Salvar Nova Data</button>
-            </div>
-            <button class="btn-clear" style="margin-top: 15px;" onclick="fecharModalAdiar()">Cancelar</button>
-        </div>
-    </div>
-
-    <!-- Modal Editar Ajustado -->
     <div id="modalEditar" class="modal-overlay">
         <div class="modal-content" style="max-width: 500px; text-align: left;">
             <h3 style="text-align: center; color: var(--primary-color); margin-top: 0; margin-bottom: 20px;">Editar Tarefa</h3>
             <form id="editForm" style="display: flex; flex-direction: column;">
                 <div class="form-group">
-                    <label>Paciente/Local</label>
+                    <label>Observações</label>
                     <input type="text" id="editPaciente" required>
                 </div>
                 <div class="form-group">
-                    <label>Nº da Requisição</label>
+                    <label>Nº da Requisição (Opcional)</label>
                     <input type="text" id="editNumRequisicao">
                 </div>
                 <div class="form-group">
@@ -178,8 +159,8 @@
         <div id="createView" class="view">
             <div class="header-nav"><button onclick="mudarTela('homeView')" style="margin:0; height:auto; padding:8px 15px;">← Voltar</button><h2>Nova Tarefa</h2></div>
             <form id="taskForm">
-                <div class="form-group"><label>Paciente/Local</label><input type="text" id="paciente" placeholder="NOME DO PACIENTE/LOCAL" required></div>
-                <div class="form-group"><label>Nº da Requisição</label><input type="text" id="numRequisicao" placeholder="Nº DA REQUISIÇÃO"></div>
+                <div class="form-group"><label>Observações</label><input type="text" id="paciente" placeholder="OBSERVAÇÕES" required></div>
+                <div class="form-group"><label>Nº da Requisição (Opcional)</label><input type="text" id="numRequisicao" placeholder="Nº DA REQUISIÇÃO"></div>
                 <div class="form-group"><label id="labelDataPrincipal">Data</label><input type="date" id="data" required></div>
                 <div class="form-group" id="grupoDataEntrega" style="display: none;"><label>Data da Entrega</label><input type="date" id="dataEntrega"></div>
                 <div class="form-group"><label>Material/Tarefa</label><input type="text" id="material" placeholder="DESCRIÇÃO DO MATERIAL/TAREFA" required></div>
@@ -215,7 +196,7 @@
                 </div>
             </div>
             <div class="filter-container">
-                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR PACIENTE/LOCAL, MATERIAL OU REQUISIÇÃO..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
+                <div style="flex: 1 1 100%;"><input type="text" id="searchBusca" placeholder="🔍 BUSCAR OBSERVAÇÕES, MATERIAL OU REQUISIÇÃO..." oninput="filtrarTarefas()" style="width: 100%; text-transform: uppercase;"></div>
                 <div class="form-group" style="flex: 1 1 150px;"><label>Data Inicial</label><input type="date" id="filterInicio" onchange="filtrarTarefas()"></div>
                 <div class="form-group" style="flex: 1 1 150px;"><label>Data Final</label><input type="date" id="filterFim" onchange="filtrarTarefas()"></div>
                 <div class="form-group-full"><label>Tipos</label><div class="checkbox-group" id="filterTipo">
@@ -230,7 +211,7 @@
                 <button onclick="limparFiltro()" class="btn-clear" style="margin-top: 10px;">Limpar Filtros</button>
             </div>
             <table id="taskTable">
-                <thead><tr><th>Paciente/Local</th><th>Req.</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Criador</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Observações</th><th>Req.</th><th>Data</th><th>Material/Tarefa</th><th>Qtd</th><th>Tipo</th><th>Criador</th><th>Ações</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -243,7 +224,6 @@
 
         let tarefas = [];
         let tarefaParaExcluir = null;
-        let tarefaParaAdiar = null;
         let tarefaParaEditar = null; 
 
         async function verificarSessao() {
@@ -296,8 +276,7 @@
                 let reqDisplay = t.num_requisicao ? t.num_requisicao : '-';
 
                 let botoesPendente = t.status === 'pendente' ? 
-                    `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>
-                     <button class="btn-adiar" onclick="abrirModalAdiar(${t.id})">Adiar</button>` : '✓';
+                    `<button class="btn-concluir" onclick="concluirTarefa(${t.id})">Concluído</button>` : '✓';
 
                 tr.innerHTML = `
                     <td style="text-transform: uppercase;">${t.paciente}</td>
@@ -377,7 +356,6 @@
             mudarTela('listView');
         });
 
-        // --- FUNÇÕES DE EDIÇÃO ---
         function abrirModalEditar(id) {
             tarefaParaEditar = tarefas.find(t => t.id === id);
             
@@ -435,11 +413,7 @@
         }
         async function confirmarExclusao(modo) { fecharModalExcluir(); document.getElementById('loading').style.display = 'flex'; if (modo === 'apenas') await gerarProxima(tarefaParaExcluir); await supabaseApp.from('tarefas').delete().eq('id', tarefaParaExcluir.id); await carregarTarefas(); }
         
-        function abrirModalAdiar(id) { tarefaParaAdiar = tarefas.find(t => t.id === id); document.getElementById('modalAdiarText').innerText = `Paciente: ${tarefaParaAdiar.paciente}`; document.getElementById('novaDataAdiar').value = tarefaParaAdiar.data; document.getElementById('modalAdiar').style.display = 'flex'; }
-        async function confirmarAdiar() { const novaData = document.getElementById('novaDataAdiar').value; fecharModalAdiar(); document.getElementById('loading').style.display = 'flex'; await supabaseApp.from('tarefas').update({ data: novaData }).eq('id', tarefaParaAdiar.id); await carregarTarefas(); }
-        
         function fecharModalExcluir() { document.getElementById('modalExcluir').style.display = 'none'; }
-        function fecharModalAdiar() { document.getElementById('modalAdiar').style.display = 'none'; }
         
         function mudarTela(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
         
@@ -470,7 +444,7 @@
         document.getElementById('tarefa').addEventListener('change', function() { document.getElementById('grupoDataEntrega').style.display = this.value === 'Comprar/Entregar' ? 'flex' : 'none'; });
         
         function exportarExcel() {
-            let csv = "Paciente/Local;Num Requisicao;Data;Material/Tarefa;Qtd;Tipo;Criador;Status\n";
+            let csv = "Observacoes;Num Requisicao;Data;Material/Tarefa;Qtd;Tipo;Criador;Status\n";
             tarefas.forEach(t => { 
                 let req = t.num_requisicao ? t.num_requisicao : '';
                 let autor = t.criado_por ? t.criado_por.split('@')[0] : '';
